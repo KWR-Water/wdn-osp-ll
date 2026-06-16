@@ -8,3 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Hydraulic sim and optimisation cache
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# macOS
+.DS_Store
