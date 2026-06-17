@@ -26,6 +26,7 @@ import networkx as nx
 from epyt import epanet
 
 from wdn_osp_ll.hyd_analysis.lsm_manipulation.leak_signature_matrices import (
+    ChiSquaredMatrix,
     SensitivityMatrix,
 )
 
@@ -416,5 +417,19 @@ class WDNLeakAnalysis(WDNBaseAnalysis):
         return self._cached(
             "sensitivity_matrix",
             lambda: SensitivityMatrix.from_analysis(self),
+        )
+
+    @property
+    def chi_squared_matrix(self) -> ChiSquaredMatrix:
+        """Chi-squared normalised pressure drop over all leak scenarios, as a
+        labelled :class:`ChiSquaredMatrix` (``n_nodes`` x ``n_leak_scenarios``).
+
+        For a scenario subset, reduce first with
+        ``self.select_scenarios(...).chi_squared_matrix``; this property is the
+        all-scenarios case.
+        """
+        return self._cached(
+            "chi_squared_matrix",
+            lambda: ChiSquaredMatrix.from_analysis(self),
         )
 

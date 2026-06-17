@@ -76,11 +76,10 @@ class LeakSignatureMatrix:
         return new
     
     def _scale(self, factors: np.ndarray) -> "LeakSignatureMatrix":
-        self._replace(
+        return self._replace(
             data=self.data / factors,
             scale_factors=self.scale_factors * factors,
         )
-        return self
 
     # -- inversion ----------------------------------------------------------
     def _unscale(self, matrix: np.ndarray) -> np.ndarray:
@@ -123,3 +122,38 @@ class SensitivityMatrix(LeakSignatureMatrix):
         """Leak pressure field that produced ``reconstructed``: undo any column
         scaling, then ``p = nominal - sensitivity``."""
         return self.nominal_pressures[:, None] - self._unscale(reconstructed)
+
+
+class ChiSquaredMatrix(LeakSignatureMatrix):
+    """LSM whose entries are the chi-squared normalised pressure drop.
+
+    ``data[i, c] == (nominal_pressures[i] - pressure_under_scenario_c[i])^2 / nominal_pressures[i]``.
+    """
+
+    @classmethod
+    def from_analysis(cls, analysis) -> "ChiSquaredMatrix":
+        """Build the chi-squared matrix over every scenario of a
+        :class:`WDNLeakAnalysis`.
+
+        To restrict to a subset of scenarios, reduce the analysis first with
+        ``analysis.select_scenarios(...)`` and build from the result.
+        """
+        drop = analysis.pressures[:, None] - analysis.pressures_per_leak_scenario
+        nominal = analysis.pressures[:, None]
+        chi2 = np.where(nominal != 0, drop**2 / np.where(nominal != 0, nominal, 1), 0.0)
+        return cls(
+            data=chi2.copy(),
+            node_ids=list(analysis.node_ids),
+            leak_scenarios=list(analysis.leak_scenarios),
+            nominal_pressures=analysis.pressures.copy(),
+        )
+
+    def to_pressure_field(self, reconstructed: np.ndarray) -> np.ndarray:
+        """Leak pressure field that produced ``reconstructed``: undo any column
+        scaling, then solve ``chi2 = drop^2 / nominal`` for the pressure drop
+        and subtract from nominal. The sign of the drop is lost (chi-squared is
+        always non-negative), so this assumes the drop is non-negative (leaks
+        reduce pressure)."""
+        chi2 = self._unscale(reconstructed)
+        drop = np.sqrt(chi2 * self.nominal_pressures[:, None])
+        return self.nominal_pressures[:, None] - drop

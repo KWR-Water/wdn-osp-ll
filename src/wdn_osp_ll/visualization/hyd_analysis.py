@@ -10,9 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from wdn_osp_ll.hyd_analysis.data_structures import WDNLeakAnalysis
-from wdn_osp_ll.hyd_analysis.lsm_manipulation.leak_signature_matrices import (
-    SensitivityMatrix,
-)
 from wdn_osp_ll.hyd_analysis.lsm_manipulation.operations import (
     scale_nodes_by_scenario_mean,
 )
@@ -28,12 +25,12 @@ def _leak_magnitudes_by_junction(analysis: WDNLeakAnalysis) -> np.ndarray:
     return analysis.leak_magnitudes.reshape(n_junctions, n_coefficients)
 
 
-def plot_sensitivity_matrices(
+def plot_lsms(
     analysis: WDNLeakAnalysis,
     emitter_coefficients: np.ndarray | None = None,
 ) -> None:
-    """Show the sensitivity matrix, raw and node-scaled, for a few emitter
-    coefficients.
+    """Show the leak signature matrices (Sensitivity Matrix and Chi-squared), 
+    raw and node-scaled, for a few emitter coefficients.
 
     One column per emitter coefficient; the top row is the raw sensitivity
     matrix and the bottom row is the same matrix scaled per node by its mean
@@ -44,9 +41,9 @@ def plot_sensitivity_matrices(
         emitter_coefficients = analysis.emitter_coefficients[::2]
 
     fig, axes = plt.subplots(
-        nrows=2,  # raw sensitivity matrix and its node-scaled version
+        nrows=4,  # raw sensitivity matrix and its node-scaled version and same for chi-squared
         ncols=len(emitter_coefficients),
-        figsize=(12, 6),
+        figsize=(12, 10),
         sharex=True,
         sharey=True,
         squeeze=False,
@@ -54,14 +51,21 @@ def plot_sensitivity_matrices(
 
     for col, k in enumerate(emitter_coefficients):
         scenarios = [(j, float(k)) for j in analysis.junctions]
-        raw = SensitivityMatrix.from_analysis(analysis.select_scenarios(scenarios))
-        scaled = scale_nodes_by_scenario_mean(raw)
+        raw_sm = analysis.select_scenarios(scenarios).sensitivity_matrix
+        scaled_sm = scale_nodes_by_scenario_mean(raw_sm)
+        raw_chi = analysis.select_scenarios(scenarios).chi_squared_matrix
+        scaled_chi = scale_nodes_by_scenario_mean(raw_chi)
 
-        for row, (lsm, label) in enumerate(((raw, ""), (scaled, " - scaled"))):
+        for row, (lsm, label_front, label_back) in enumerate([
+                (raw_sm, "Sens. M.", ""),
+                (scaled_sm, "Sens. M.", " - scaled"),
+                (raw_chi, "Chi-sq. M.", ""),
+                (scaled_chi, "Chi-sq. M.", " - scaled"),
+        ]):
             ax = axes[row, col]
             ax.imshow(lsm.data, cmap="viridis", aspect="auto")
-            ax.set_title(f"Sensitivity matrix - EC:{round(float(k), 3)}{label}")
-            if row == 1:
+            ax.set_title(f"{label_front} - EC:{round(float(k), 3)}{label_back}")
+            if row == 3:
                 ax.set_xlabel("Leaky junction index")
             if col == 0:
                 ax.set_ylabel("Node index")
