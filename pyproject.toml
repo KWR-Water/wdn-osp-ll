@@ -10,6 +10,7 @@ requires-python = ">=3.11,<=3.13"
 dependencies = [
     "epyt>=1.0",
     "networkx>=3.6.0",
+    "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]

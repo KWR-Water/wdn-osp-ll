@@ -1,0 +1,7 @@
+inp_filepath: '../../networks/pescara.inp'
+
+settings:
+  emitter_coefficients:
+    start: 0.2
+    end: 2
+    step: 0.2

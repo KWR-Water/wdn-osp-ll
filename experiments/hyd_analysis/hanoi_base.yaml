@@ -1,0 +1,7 @@
+inp_filepath: '../../networks/hanoi.inp'
+
+settings:
+  emitter_coefficients:
+    start: 1
+    end: 15
+    step: 1.5
