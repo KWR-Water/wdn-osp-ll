@@ -54,9 +54,6 @@ class DDLeakLocOSPProblem:
         Junction EPANET IDs that are valid sensor placements.  Defaults to
         all junctions present in the LSM.
     """
-    KNOWN_DD_LL_METHODS = [
-        TwoStepsDDLeakLocMehod
-    ]
 
     def __init__(
         self,
@@ -279,7 +276,7 @@ class DDLeakLocOSPProblem:
             )
 
         ll_cfg = config["dd_leak_localization"]
-        ll_method = get_dd_leak_loc_method(ll_cfg)
+        ll_method = get_dd_leak_loc_method(config=ll_cfg, wdn_base_analysis=analysis) # TODO: restrict to base class
         
         # Restrict the optimal sensor placement problem 
 
