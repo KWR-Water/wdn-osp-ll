@@ -50,7 +50,7 @@ def plot_lsms(
     )
 
     for col, k in enumerate(emitter_coefficients):
-        scenarios = [(j, float(k)) for j in analysis.junctions]
+        scenarios = [(j, float(k)) for j in analysis.junction_ids]
         raw_sm = analysis.select_scenarios(scenarios).sensitivity_matrix
         scaled_sm = scale_nodes_by_scenario_mean(raw_sm)
         raw_chi = analysis.select_scenarios(scenarios).chi_squared_matrix

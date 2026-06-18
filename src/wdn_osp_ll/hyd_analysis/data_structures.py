@@ -74,7 +74,7 @@ class WDNBaseAnalysis:
           orientation follows the EPANET orientation flipped by the sign of the 
           MNF flow, so it always points in the actual flow direction.
     - ``pressures``: nominal pressure at every node (``n_nodes``,), metres.
-    - ``junctions``: list of junction EPANET IDs.
+    - ``junction_ids``: list of junction EPANET IDs.
 
     If ``inp_filepath`` is ``None`` the instance is left empty (used by the
     derived class, which builds the EPANET object itself). If a path is given,
@@ -96,7 +96,7 @@ class WDNBaseAnalysis:
         self.inp_filepath = None
         self.graph = None
         self.pressures = None
-        self.junctions = None
+        self.junction_ids = None
 
     def _build(self, inp_filepath: str, demand_model: dict | None = None) -> epanet:
         """Run the nominal simulation, cache the static + nominal data and return
@@ -116,7 +116,7 @@ class WDNBaseAnalysis:
             ensystem.setDemandModel(**demand_model)
 
         self.inp_filepath = inp_filepath
-        self.junctions = ensystem.getNodeJunctionNameID()
+        self.junction_ids = ensystem.getNodeJunctionNameID()
 
         results = ensystem.getComputedHydraulicTimeSeries()
         self.pressures = np.asarray(results.Pressure[_MNF, :], dtype=float)
@@ -191,7 +191,7 @@ class WDNBaseAnalysis:
 
     @property
     def n_junctions(self) -> int:
-        return len(self.junctions) if self.junctions is not None else 0
+        return len(self.junction_ids) if self.junction_ids is not None else 0
 
     @property
     def n_sources(self) -> int:
@@ -202,19 +202,48 @@ class WDNBaseAnalysis:
         """Node EPANET IDs ordered by ``py_index`` (matching the rows of the
         node-indexed arrays such as ``pressures``)."""
         def _ordered():
+            assert self.graph is not None
             ids: list[str | None] = [None] * self.n_nodes
             for node_id, py_idx in self.graph.nodes(data=PY_INDEX):
                 ids[py_idx] = node_id
             return ids
         return self._cached("node_ids", _ordered)
+    
+    # @property
+    # junction_ids(self) -> list[str]: Already a property
+
+    @property
+    def source_ids(self) -> list[str]:
+        """Source EPANET IDs"""
+        assert self.junction_ids is not None
+        junc_ids = set(self.junction_ids)
+        return [n for n in self.node_ids if n not in junc_ids]
+
+    @property
+    def node_pyidxs(self) -> list[int]:
+        assert self.graph is not None
+        return [self.graph.nodes(data=PY_INDEX)[n] for n in self.node_ids]
+    
+    @property
+    def junction_pyidxs(self) -> list[int]:
+        assert self.graph is not None
+        assert self.junction_ids is not None
+        junc_ids = set(self.junction_ids)
+        return [self.graph.nodes(data=PY_INDEX)[n] for n in junc_ids]
+    
+    @property
+    def source_pyidxs(self) -> list[int]:
+        junc_pyidxs = set(self.junction_pyidxs)
+        return [n for n in self.node_pyidxs if n not in junc_pyidxs]
 
     def demands(self) -> np.ndarray:
         """Requested demand at every junction, ordered as ``self.junctions``."""
-        return np.array([self.graph.nodes[j][DEMAND] for j in self.junctions])
+        assert self.graph is not None
+        assert self.junction_ids is not None
+        return np.array([self.graph.nodes[j][DEMAND] for j in self.junction_ids])
 
     def total_demand(self) -> float:
         return self._cached("total_demand", lambda: float(self.demands().sum()))
-
 
 class WDNLeakAnalysis(WDNBaseAnalysis):
     """Extends :class:`WDNBaseAnalysis` with the leak-scenario simulations.
