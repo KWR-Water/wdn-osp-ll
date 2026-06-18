@@ -13,7 +13,3 @@ class AlvesLSMReconstruction(LSMReconstructionMethod):
 
     def _execute(self, observed_lsm: np.ndarray, x: np.ndarray) -> np.ndarray:
         raise NotImplementedError
-
-    @classmethod
-    def from_config(cls, config: dict) -> "AlvesLSMReconstruction":
-        return cls()

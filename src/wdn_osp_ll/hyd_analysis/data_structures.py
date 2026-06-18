@@ -245,6 +245,27 @@ class WDNBaseAnalysis:
     def total_demand(self) -> float:
         return self._cached("total_demand", lambda: float(self.demands().sum()))
 
+    # -- shortest-path distance matrices (mock implementations) ---------------
+
+    def shortest_path_topological_undirected(self) -> np.ndarray:
+        return np.zeros((self.n_nodes, self.n_nodes))
+
+    def shortest_path_topological_directed(self) -> np.ndarray:
+        return np.zeros((self.n_nodes, self.n_nodes))
+
+    def shortest_path_length_undirected(self) -> np.ndarray:
+        return np.zeros((self.n_nodes, self.n_nodes))
+
+    def shortest_path_length_directed(self) -> np.ndarray:
+        return np.zeros((self.n_nodes, self.n_nodes))
+
+    def shortest_path_resistance_undirected(self) -> np.ndarray:
+        return np.zeros((self.n_nodes, self.n_nodes))
+
+    def shortest_path_resistance_directed(self) -> np.ndarray:
+        return np.zeros((self.n_nodes, self.n_nodes))
+
+
 class WDNLeakAnalysis(WDNBaseAnalysis):
     """Extends :class:`WDNBaseAnalysis` with the leak-scenario simulations.
 

@@ -38,7 +38,3 @@ class DDLeakLocMethod(ABC):
     
     def get_bounds(self) -> tuple[np.ndarray, np.ndarray]:
         return (np.array([]), np.array([]))
-
-    @classmethod
-    def from_config(cls, _config: dict) -> "DDLeakLocMethod":
-        raise NotImplementedError

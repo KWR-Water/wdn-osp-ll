@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 
 from ..core import DDLeakLocMethod
@@ -6,7 +10,10 @@ from ..lsm_reconstruction.services import get_lsm_reconstruction_method
 from ..search_area_definition.base import SearchAreaDefinitionMethod
 from ..search_area_definition.services import get_search_area_definition_method
 
-class TwoStepsDDLeakLocMehod(DDLeakLocMethod):
+if TYPE_CHECKING:
+    from wdn_osp_ll.hyd_analysis.data_structures import WDNBaseAnalysis
+
+class TwoStepsDDLeakLocMethod(DDLeakLocMethod):
 
     LABEL = "two_steps"
     
@@ -20,7 +27,7 @@ class TwoStepsDDLeakLocMehod(DDLeakLocMethod):
         self.lsm_reconstructor = lsm_reconstructor
         self.search_area_definer = search_area_definer
 
-    def localize(self, observations: np.ndarray, x: np.ndarray) -> np.ndarray:
+    def _localize(self, observations: np.ndarray, x: np.ndarray) -> np.ndarray:
         
         lsm_obs = observations.copy()
 
@@ -96,9 +103,11 @@ class TwoStepsDDLeakLocMehod(DDLeakLocMethod):
         return x_reco, x_sadef 
     
     @classmethod
-    def from_config(cls, config: dict) -> "TwoStepsDDLeakLocMehod":
+    def from_config(cls, config: dict, wdn_base_analysis: "WDNBaseAnalysis") -> "TwoStepsDDLeakLocMethod":
 
-        reco_method = get_lsm_reconstruction_method(config["reconstruction_method"])
+        reco_method = get_lsm_reconstruction_method(
+            config["reconstruction_method"], wdn_base_analysis
+        )
 
         sadef_method = get_search_area_definition_method(config["search_area_definition_method"])
 
