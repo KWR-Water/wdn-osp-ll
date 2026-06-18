@@ -32,5 +32,5 @@ class SearchAreaDefinitionMethod(ABC):
         return (np.array([]), np.array([]))
 
     @classmethod
-    def from_config(cls, _config: dict) -> "SearchAreaDefinitionMethod":
-        raise NotImplementedError
+    def from_config(cls, config: dict) -> "SearchAreaDefinitionMethod":
+        return cls(**config)

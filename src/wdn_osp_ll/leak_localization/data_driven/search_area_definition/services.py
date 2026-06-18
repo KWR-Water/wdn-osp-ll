@@ -1,7 +1,6 @@
 from .base import SearchAreaDefinitionMethod
 from ._impl.quantile_based import QuantileBasedSearchArea
-from ._impl.relative_threshold import RelativeThresholdSearchArea
-from ._impl.absolute_threshold import AbsoluteThresholdSearchArea
+from ._impl.threshold_based import AbsoluteThresholdSearchArea, RelativeThresholdSearchArea
 
 _REGISTRY: dict[str, type[SearchAreaDefinitionMethod]] = {
     cls.LABEL: cls
