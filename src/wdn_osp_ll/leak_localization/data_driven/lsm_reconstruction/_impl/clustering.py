@@ -50,7 +50,7 @@ class ClusteringLSMReconstruction(LSMReconstructionMethod):
 
     def _get_distances(self, metric: DistanceMetric, directed: bool) -> np.ndarray:
         method_name = f"shortest_path_{metric.name.lower()}_{'directed' if directed else 'undirected'}"
-        return getattr(self.wdn_base_analysis, method_name)()
+        return getattr(self.wdn_base_analysis, method_name)
 
     def _resolve(self, x: np.ndarray) -> tuple[DistanceMetric, bool]:
         # x contains only integer vars (ncx == 0); metric index first, directed flag second

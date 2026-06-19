@@ -295,7 +295,7 @@ class DDLeakLocOSPProblem:
             leak_analysis=analysis,
             lsm=lsm,
             leak_localizer=ll_method,
-            metrics=list(config["metrics"]),
+            metrics=list(config.get("metrics", [])),
             objectives=list(config["objectives"]),
             excluded_junctions=excluded_junctions,
             n_sensors=n_sensors,
