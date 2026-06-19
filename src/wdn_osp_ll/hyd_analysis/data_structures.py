@@ -22,26 +22,20 @@ import pathlib
 
 import yaml
 import numpy as np
-import networkx as nx
 from epyt import epanet
 
 from wdn_osp_ll.hyd_analysis.lsm_manipulation.leak_signature_matrices import (
     ChiSquaredMatrix,
     SensitivityMatrix,
 )
-
-# --- graph attribute keys --------------------------------------------------
-# node attributes
-PY_INDEX = "py_index"   # 0-based python index; EPANET index is py_index + 1
-ELEVATION = "elevation"
-DEMAND = "demand"       # requested demand
-OUTFLOW = "outflow"     # delivered demand
-# pipe (edge) attributes
-ID = "id"               # EPANET pipe ID (the edge itself is keyed by node IDs)
-LENGTH = "length"
-DIAMETER = "diameter"
-ROUGHNESS = "roughness"
-FLOW = "flow"           # absolute flow at MNF (edge orientation carries the sign)
+from wdn_osp_ll.hyd_analysis.topology_operations import (
+    PY_INDEX,
+    DEMAND,
+    LENGTH,
+    build_graph,
+    shortest_path_matrix,
+    _hw_resistance_weight,
+)
 
 # --- config keys -----------------------------------------------------------
 INP_FILEPATH = "inp_filepath"
@@ -123,57 +117,8 @@ class WDNBaseAnalysis:
         outflows = np.asarray(results.Demand[_MNF, :], dtype=float)
         flows = np.asarray(results.Flow[_MNF, :], dtype=float)
 
-        self.graph = self._build_graph(ensystem, outflows, flows)
+        self.graph = build_graph(ensystem, outflows, flows)
         return ensystem
-
-    @staticmethod
-    def _build_graph(ensystem: epanet, outflows: np.ndarray, flows: np.ndarray) -> nx.DiGraph:
-        node_ids = ensystem.getNodeNameID()
-        elevations = np.asarray(ensystem.getNodeElevations(), dtype=float)
-        # requested demand: sum across demand categories
-        requested = np.sum(
-            [np.asarray(v, dtype=float) for v in ensystem.getNodeBaseDemands().values()],
-            axis=0,
-        )
-
-        graph = nx.DiGraph()
-        for py_idx, node_id in enumerate(node_ids):
-            graph.add_node(
-                node_id,
-                **{
-                    PY_INDEX: py_idx,
-                    ELEVATION: float(elevations[py_idx]),
-                    DEMAND: float(requested[py_idx]),
-                    OUTFLOW: float(outflows[py_idx]),
-                },
-            )
-
-        link_ids = ensystem.getLinkNameID()
-        nodes_index = np.asarray(ensystem.getLinkNodesIndex())  # (n_links, 2), EPANET indices
-        lengths = np.asarray(ensystem.getLinkLength(), dtype=float)
-        diameters = np.asarray(ensystem.getLinkDiameter(), dtype=float)
-        roughnesses = np.asarray(ensystem.getLinkRoughnessCoeff(), dtype=float)
-
-        for link_py_idx, link_id in enumerate(link_ids):
-            start_en, end_en = nodes_index[link_py_idx]
-            flow = float(flows[link_py_idx])
-            # Orient the edge in the actual flow direction: EPANET start->end when
-            # the flow is positive, reversed when negative.
-            if flow < 0:
-                start_en, end_en = end_en, start_en
-            graph.add_edge(
-                node_ids[start_en - 1],
-                node_ids[end_en - 1],
-                **{
-                    ID: link_id,
-                    PY_INDEX: link_py_idx,
-                    LENGTH: float(lengths[link_py_idx]),
-                    DIAMETER: float(diameters[link_py_idx]),
-                    ROUGHNESS: float(roughnesses[link_py_idx]),
-                    FLOW: abs(flow),
-                },
-            )
-        return graph
 
     # -- lazy cache ---------------------------------------------------------
     def _init_cache(self) -> None:
@@ -245,25 +190,65 @@ class WDNBaseAnalysis:
     def total_demand(self) -> float:
         return self._cached("total_demand", lambda: float(self.demands().sum()))
 
-    # -- shortest-path distance matrices (mock implementations) ---------------
+    # -- shortest-path distance matrices -------------------------------------
 
+    @property
     def shortest_path_topological_undirected(self) -> np.ndarray:
-        return np.zeros((self.n_nodes, self.n_nodes))
+        assert self.graph is not None
+        graph = self.graph
+        return self._cached(
+            "sp_topo_undir",
+            lambda: shortest_path_matrix(graph, directed=False, weight=None),
+        )
 
+    @property
     def shortest_path_topological_directed(self) -> np.ndarray:
-        return np.zeros((self.n_nodes, self.n_nodes))
+        assert self.graph is not None
+        graph = self.graph
+        return self._cached(
+            "sp_topo_dir",
+            lambda: shortest_path_matrix(graph, directed=True, weight=None),
+        )
 
+    @property
     def shortest_path_length_undirected(self) -> np.ndarray:
-        return np.zeros((self.n_nodes, self.n_nodes))
+        assert self.graph is not None
+        graph = self.graph
+        return self._cached(
+            "sp_len_undir",
+            lambda: shortest_path_matrix(graph, directed=False, weight=LENGTH),
+        )
 
+    @property
     def shortest_path_length_directed(self) -> np.ndarray:
-        return np.zeros((self.n_nodes, self.n_nodes))
+        assert self.graph is not None
+        graph = self.graph
+        return self._cached(
+            "sp_len_dir",
+            lambda: shortest_path_matrix(graph, directed=True, weight=LENGTH),
+        )
 
+    @property
     def shortest_path_resistance_undirected(self) -> np.ndarray:
-        return np.zeros((self.n_nodes, self.n_nodes))
+        assert self.graph is not None
+        graph = self.graph
+        return self._cached(
+            "sp_res_undir",
+            lambda: shortest_path_matrix(
+                graph, directed=False, weight=_hw_resistance_weight
+            ),
+        )
 
+    @property
     def shortest_path_resistance_directed(self) -> np.ndarray:
-        return np.zeros((self.n_nodes, self.n_nodes))
+        assert self.graph is not None
+        graph = self.graph
+        return self._cached(
+            "sp_res_dir",
+            lambda: shortest_path_matrix(
+                graph, directed=True, weight=_hw_resistance_weight
+            ),
+        )
 
 
 class WDNLeakAnalysis(WDNBaseAnalysis):
