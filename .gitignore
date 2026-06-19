@@ -21,3 +21,7 @@ wheels/
 
 # pygmo2 dependency
 pygmo2/
+
+# EPyT temps
+*_temp.inp
+*_temp.txt
