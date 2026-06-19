@@ -24,6 +24,7 @@ from ...hyd_analysis.lsm_manipulation.operations import observe
 from ...hyd_analysis.lsm_manipulation.leak_signature_matrices import LeakSignatureMatrix
 
 from ...leak_localization.data_driven import DDLeakLocMethod, get_dd_leak_loc_method
+from ..metrics import Metric, MetricContext, resolve_metric
 
 # ---------------------------------------------------------------------------
 # OSP problem
@@ -87,20 +88,15 @@ class DDLeakLocOSPProblem:
 
         self._validate()
         self._init_sensor_dvs()
+        # Resolve after _init_sensor_dvs so sens_l/u_limit are available to factories.
+        self._resolved_metrics: list[Metric] = [resolve_metric(m, self) for m in self.metrics]
+        self._metric_index: dict[str, Metric] = {m.name: m for m in self._resolved_metrics}
 
-    def _validate(self) -> Self:
-        node_set = set(self.lsm.node_ids)
-        unknown = [s for s in self.possible_sensor_locations if s not in node_set]
-        if unknown:
-            raise ValueError(
-                f"possible_sensor_locations contains IDs not in the LSM: {unknown}"
-            )
+    def _validate(self) -> Self: 
         
         non_metric = [o for o in self.objectives if o not in self.metrics]
-        if non_metric:
-            raise ValueError(
-                f"objectives must be a subset of metrics; unknown: {non_metric}"
-            )
+        [self.metrics.append(m) for m in non_metric]
+
         return self
         
     def _init_sensor_dvs(self) -> Self:
@@ -158,15 +154,16 @@ class DDLeakLocOSPProblem:
         
     def compute_metrics(self, x: np.ndarray) -> dict[str, float]:
         sensors_pyidxs = self._get_sensors_pyidxs_from_x(x)
-        
         lsm_observed = observe(lsm=self.lsm, sensor_idxs=sensors_pyidxs)
-
         search_area = self.leak_localizer(lsm_observed, x[:-self._sens_dvs_nix])
 
-        # calculate metrics
-        # TODO: impl
-        metrics = {}
-        return metrics
+        ctx = MetricContext(
+            sensors_pyidxs=sensors_pyidxs,
+            lsm_observed=lsm_observed,
+            search_area=search_area,
+            problem=self,
+        )
+        return {m.name: m(ctx) for m in self._resolved_metrics}
 
     # -- pygmo mandatory interface --------------------------------------------
 
@@ -198,6 +195,10 @@ class DDLeakLocOSPProblem:
 
     def get_nobj(self) -> int:
         return len(self.objectives)
+
+    def get_nadir_point(self) -> list[float]:
+        """Worst-case fitness vector — used as penalty and hypervolume reference."""
+        return [self._metric_index[obj].max_val for obj in self.objectives]
 
     # -- pygmo optional interface ---------------------------------------------
 
