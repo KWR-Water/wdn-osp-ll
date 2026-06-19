@@ -20,7 +20,7 @@ from typing import Self
 import numpy as np
 
 from ...hyd_analysis.data_structures import WDNLeakAnalysis
-from ...hyd_analysis.lsm_manipulation.operations import observe
+from ...hyd_analysis.lsm_manipulation.operations import observe, scale_nodes_by_scenario_mean
 from ...hyd_analysis.lsm_manipulation.leak_signature_matrices import LeakSignatureMatrix
 
 from ...leak_localization.data_driven import DDLeakLocMethod, get_dd_leak_loc_method
@@ -275,6 +275,10 @@ class DDLeakLocOSPProblem:
                 f"Unknown signature_matrix: {lsm_type!r}. "
                 "Use 'sensitivity' or 'chi_squared'."
             )
+        
+        lsm_scale = la_cfg.get("scale_nodes_by_scenario_mean", False)
+        if lsm_scale:
+            lsm = scale_nodes_by_scenario_mean(lsm=lsm)
 
         ll_cfg = config["dd_leak_localization"]
         ll_method = get_dd_leak_loc_method(config=ll_cfg, wdn_base_analysis=analysis) # TODO: restrict to base class
