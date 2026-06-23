@@ -38,15 +38,19 @@ from .results import OSPResult, OSPRunHistory
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _filtered_hypervolume(pop: Any, ref_point: np.ndarray) -> float:
-    """Hypervolume of the non-dominated front strictly dominated by ref_point."""
-    fv = pop.get_f()
+def _hypervolume(fv: np.ndarray, ref_point: np.ndarray | list[float]) -> float:
+    """Hypervolume of ``fv`` strictly dominated by ``ref_point``."""
     fv = fv[np.all(fv < ref_point, axis=1)]
     if fv.shape[0] < 2:
         return 0.0
-    ndf, *_ = pygmo.fast_non_dominated_sorting(fv)
-    fv = fv[ndf[0], :]
     return float(pygmo.hypervolume(fv).compute(ref_point))
+
+
+def _filtered_hypervolume(pop: Any, ref_point: np.ndarray) -> float:
+    """Hypervolume of the non-dominated front strictly dominated by ref_point."""
+    fv = pop.get_f()
+    ndf, *_ = pygmo.fast_non_dominated_sorting(fv)
+    return _hypervolume(fv[ndf[0]], ref_point)
 
 
 def _make_algorithm(name: str, rep_gen: int) -> pygmo.algorithm:
@@ -139,12 +143,15 @@ def run_optimisation(config: dict) -> OSPResult:
         ndf, *_ = pygmo.fast_non_dominated_sorting(all_f)
         best_x = all_x[ndf[0]]
         best_f = all_f[ndf[0]]
+        assert ref_point is not None
+        final_hv = _hypervolume(best_f, ref_point)
     else:
         champ_xs = archi.get_champions_x()
         champ_fs = archi.get_champions_f()
         best_idx = int(np.argmin([f[0] for f in champ_fs]))
         best_x = champ_xs[best_idx]
         best_f = champ_fs[best_idx]
+        final_hv = None
 
     history = OSPRunHistory(
         generations=gen_values,
@@ -161,6 +168,7 @@ def run_optimisation(config: dict) -> OSPResult:
         config=config,
         config_hash=config_hash,
         history=history,
+        final_hypervolume=final_hv,
     )
 
 

@@ -67,6 +67,8 @@ class OSPResult:
 
     history: OSPRunHistory
 
+    final_hypervolume: float | None = None
+
     # -- persistence --------------------------------------------------------
 
     _CACHE_DIR = pathlib.Path.home() / ".wdn-osp-ll" / "cache" / "opt"
