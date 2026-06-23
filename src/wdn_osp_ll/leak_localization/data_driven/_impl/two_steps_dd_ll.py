@@ -94,8 +94,8 @@ class TwoStepsDDLeakLocMethod(DDLeakLocMethod):
         cx_reco = x[:ncx_reco]
         cx_sadef = x[ncx_reco:ncx_all]
 
-        ix_reco = x[ncx_all:-nix_sadef]
-        ix_sadef = x[-nix_sadef:]
+        ix_reco = x[ncx_all:ncx_all+nix_reco]
+        ix_sadef = x[ncx_all+nix_reco:]
 
         x_reco = np.concat([cx_reco, ix_reco])
         x_sadef = np.concat([cx_sadef, ix_sadef])
