@@ -105,7 +105,12 @@ class BoatwrightLSMReconstruction(LSMReconstructionMethod):
 
         reconstructed = observed_lsm.copy()
         for j in np.where(~observed_mask)[0]:
-            weights = 1.0 / (dist[anchors, j] ** exponent)
+            d = dist[j, anchors]
+            inf_mask = np.isinf(d)
+            if inf_mask.any():
+                d = d.copy()
+                d[inf_mask] = dist[anchors[inf_mask], j]
+            weights = 1.0 / (d ** exponent)
             weighted_sum = (observed_lsm[anchors] * weights[:, np.newaxis]).sum(axis=0)
             reconstructed[j] = weighted_sum / weights.sum()
 

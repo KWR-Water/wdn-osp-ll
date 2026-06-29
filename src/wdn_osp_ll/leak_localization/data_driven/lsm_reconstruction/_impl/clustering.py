@@ -73,7 +73,7 @@ class ClusteringLSMReconstruction(LSMReconstructionMethod):
 
     def _execute(self, observed_lsm: np.ndarray, x: np.ndarray) -> np.ndarray:
         metric, directed = self._resolve(x)
-        dist_matrix = self._get_distances(metric, directed)
+        dist = self._get_distances(metric, directed)
 
         observed_mask = ~np.all(np.isnan(observed_lsm), axis=1)
 
@@ -86,7 +86,12 @@ class ClusteringLSMReconstruction(LSMReconstructionMethod):
 
         reconstructed = observed_lsm.copy()
         for j in np.where(~observed_mask)[0]:
-            closest = anchors[np.argmin(dist_matrix[j, anchors])]
+            d = dist[j, anchors]
+            inf_mask = np.isinf(d)
+            if inf_mask.any():
+                d = d.copy()
+                d[inf_mask] = dist[anchors[inf_mask], j]
+            closest = anchors[np.argmin(d)]
             reconstructed[j] = observed_lsm[closest]
 
         return reconstructed
