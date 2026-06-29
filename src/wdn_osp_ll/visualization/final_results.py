@@ -75,8 +75,8 @@ def plot_pareto_front_nsensors_msa(
 
     ax.axhline(1.0, color="green", linestyle="--", linewidth=1.5,
                label="Perfect leak localization (MSA = 1)", zorder=2)
-    ax.plot(x_ref, n_nodes / x_ref, color="gray", linestyle=":", linewidth=1.5,
-            label=r"Resolution  (MSA = $n_{nodes}$ / $n_{sensors}$)", zorder=2)
+    ax.plot(x_ref, n_junctions / x_ref, color="gray", linestyle=":", linewidth=1.5,
+            label=r"Resolution  (MSA = $n_{junctions}$ / $n_{sensors}$)", zorder=2)
 
     # --- axis limits ---
     ax.set_xlim(x_min - 0.5, x_max + 0.5)
