@@ -153,8 +153,19 @@ class DDLeakLocOSPProblem:
             return self.possible_sensor_locations_pyidxs[sens_loc_idx]
         
     def compute_metrics(self, x: np.ndarray) -> dict[str, float]:
+        
+        # We observe the LSM in all sensors and sources (known \DeltaP=0)
         sensors_pyidxs = self._get_sensors_pyidxs_from_x(x)
-        lsm_observed = observe(lsm=self.lsm, sensor_idxs=sensors_pyidxs)
+        sources_pyidxs = np.array(self.leak_analysis.source_pyidxs)
+        
+        lsm_observed = observe(
+            lsm=self.lsm,
+            sensor_idxs=np.concat([
+                sensors_pyidxs,
+                sources_pyidxs,
+                ], axis=0
+            )
+        )
         search_area = self.leak_localizer(lsm_observed, x[:-self._sens_dvs_nix])
 
         ctx = MetricContext(

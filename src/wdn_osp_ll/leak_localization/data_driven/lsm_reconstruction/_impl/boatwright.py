@@ -16,21 +16,6 @@ class BoatwrightDistanceMetric(IntEnum):
     RESISTANCE = 1
 
 
-def _idw_reconstruct(observed_lsm: np.ndarray, dist: np.ndarray, exponent: int) -> np.ndarray:
-    """Inverse distance weighted reconstruction of non-sensor LSM rows."""
-    sensor_mask = ~np.all(np.isnan(observed_lsm), axis=1)
-    sensors = np.where(sensor_mask)[0]
-    non_sensors = np.where(~sensor_mask)[0]
-
-    reconstructed = observed_lsm.copy()
-    for j in non_sensors:
-        weights = 1.0 / (dist[sensors, j] ** exponent)  # shape (n_sensors,)
-        weighted_sum = (observed_lsm[sensors] * weights[:, np.newaxis]).sum(axis=0)
-        reconstructed[j] = weighted_sum / weights.sum()
-
-    return reconstructed
-
-
 class BoatwrightLSMReconstruction(LSMReconstructionMethod):
     """Inverse-distance-weighted LSM reconstruction (Boatwright et al.).
 
@@ -62,6 +47,7 @@ class BoatwrightLSMReconstruction(LSMReconstructionMethod):
         metric: Optional[str] = None,
         directed: Optional[bool] = None,
         exponent: Optional[int] = None,
+        sources_as_sensors: bool = False,
     ) -> None:
         super().__init__(wdn_base_analysis)
 
@@ -80,6 +66,7 @@ class BoatwrightLSMReconstruction(LSMReconstructionMethod):
         self._metric = BoatwrightDistanceMetric[metric.upper()] if metric is not None else None
         self._directed = directed
         self._exponent = exponent
+        self._sources_as_sensors = sources_as_sensors
 
     def _get_distances(self, metric: BoatwrightDistanceMetric, directed: bool) -> np.ndarray:
         method_name = f"shortest_path_{metric.name.lower()}_{'directed' if directed else 'undirected'}"
@@ -106,7 +93,23 @@ class BoatwrightLSMReconstruction(LSMReconstructionMethod):
     def _execute(self, observed_lsm: np.ndarray, x: np.ndarray) -> np.ndarray:
         metric, directed, exponent = self._resolve(x)
         dist = self._get_distances(metric, directed)
-        return _idw_reconstruct(observed_lsm, dist, exponent)
+
+        observed_mask = ~np.all(np.isnan(observed_lsm), axis=1)
+
+        if self._sources_as_sensors:
+            anchors = np.where(observed_mask)[0]
+        else:
+            source_mask = np.zeros(observed_lsm.shape[0], dtype=bool)
+            source_mask[self.wdn_base_analysis.source_pyidxs] = True
+            anchors = np.where(observed_mask & ~source_mask)[0]
+
+        reconstructed = observed_lsm.copy()
+        for j in np.where(~observed_mask)[0]:
+            weights = 1.0 / (dist[anchors, j] ** exponent)
+            weighted_sum = (observed_lsm[anchors] * weights[:, np.newaxis]).sum(axis=0)
+            reconstructed[j] = weighted_sum / weights.sum()
+
+        return reconstructed
 
     @property
     def nix(self) -> int:
