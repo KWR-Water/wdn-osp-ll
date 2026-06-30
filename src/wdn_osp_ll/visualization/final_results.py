@@ -90,7 +90,10 @@ def plot_pareto_front_nsensors_msa(
     ax.set_ylim(0.5, y_data_max * 1.1)
 
     # --- x ticks: one per integer sensor count, labelled with network coverage ---
-    ax.xaxis.set_major_locator(mticker.MultipleLocator(1))
+    if x_max < 10:
+        ax.xaxis.set_major_locator(mticker.MultipleLocator(1))
+    else:
+        ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True, nbins=10, min_n_ticks=4))
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(
         lambda v, _: f"{int(v)}\n({100 * v / n_junctions:.0f}%)" if v == int(v) else ""
     ))

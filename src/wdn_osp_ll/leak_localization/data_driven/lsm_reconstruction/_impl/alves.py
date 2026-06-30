@@ -86,7 +86,7 @@ class AlvesLSMReconstruction(LSMReconstructionMethod):
             g = cr * g_bar
 
             # eq 14
-            l = g / g.sum()
+            l = g / g.sum() if g.sum() > 0 else np.full_like(g, fill_value=np.nan)
 
             # (kind of) eq 18
             reconstructed[j] = np.sum(observed_lsm[anchors] * l[:, np.newaxis], axis=0)
