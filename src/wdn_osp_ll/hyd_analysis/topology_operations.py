@@ -122,3 +122,74 @@ def shortest_path_matrix(
             distances[src_idx, tgt_idx] = dist
 
     return distances
+
+def common_path_matrix(
+    graph: nx.DiGraph,
+    *,
+    directed: bool,
+    weight,
+    source_node_ids: list[str],
+) -> np.ndarray:
+    """Common-path resistance matrix: entry [j, k] is the weight of the shared
+    path segment between node j and node k on their respective shortest paths
+    to j's nearest source.
+
+    Only junction rows/columns are written; source entries stay at 0.
+
+    Parameters
+    ----------
+    graph:
+        The ``WDNBaseAnalysis.graph`` DiGraph.
+    directed:
+        Use the directed graph when ``True``; undirected otherwise.
+    weight:
+        Same semantics as ``shortest_path_matrix``.
+    source_node_ids:
+        EPANET IDs of the source nodes (reservoirs).
+    """
+    n = graph.number_of_nodes()
+    result = np.zeros((n, n))
+
+    g: nx.Graph = graph if directed else graph.to_undirected()
+
+    all_pairs: dict = dict(nx.all_pairs_dijkstra(g, weight=weight))
+
+    source_set = set(source_node_ids)
+    junction_ids = [nid for nid in graph.nodes if nid not in source_set]
+
+    for j in junction_ids:
+        j_idx = graph.nodes[j][PY_INDEX]
+
+        # Find nearest source using paths FROM the source (src→j), which is
+        # the flow direction and the only valid direction in directed graphs.
+        closest_source = min(
+            source_set,
+            key=lambda s: all_pairs[s][0].get(j, np.inf),
+        )
+        src_dists, src_paths = all_pairs[closest_source]
+        src_to_j = src_paths.get(j)
+        if src_to_j is None:
+            continue  # no source can reach j
+
+        for k in junction_ids:
+            k_idx = graph.nodes[k][PY_INDEX]
+            src_to_k = src_paths.get(k)
+            if src_to_k is None:
+                continue  # same source can't reach k → zero common path
+
+            # Common prefix of src→j and src→k.
+            common_len = 0
+            for a, b in zip(src_to_j, src_to_k):
+                if a == b:
+                    common_len += 1
+                else:
+                    break
+
+            if common_len == 0:
+                continue
+
+            # Last node in the common prefix is the branching point.
+            branching_point = src_to_j[common_len - 1]
+            result[j_idx, k_idx] = src_dists.get(branching_point, 0.0)
+
+    return result

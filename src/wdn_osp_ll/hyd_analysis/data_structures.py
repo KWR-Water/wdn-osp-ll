@@ -34,6 +34,7 @@ from wdn_osp_ll.hyd_analysis.topology_operations import (
     LENGTH,
     build_graph,
     shortest_path_matrix,
+    common_path_matrix,
     _hw_resistance_weight,
 )
 
@@ -247,6 +248,32 @@ class WDNBaseAnalysis:
             "sp_res_dir",
             lambda: shortest_path_matrix(
                 graph, directed=True, weight=_hw_resistance_weight
+            ),
+        )
+    
+    @property
+    def common_resistance_undirected(self) -> np.ndarray:
+        assert self.graph is not None
+        graph = self.graph
+        source_ids = self.source_ids
+        return self._cached(
+            "common_res_undir",
+            lambda: common_path_matrix(
+                graph, directed=False, weight=_hw_resistance_weight,
+                source_node_ids=source_ids,
+            ),
+        )
+
+    @property
+    def common_resistance_directed(self) -> np.ndarray:
+        assert self.graph is not None
+        graph = self.graph
+        source_ids = self.source_ids
+        return self._cached(
+            "common_res_dir",
+            lambda: common_path_matrix(
+                graph, directed=True, weight=_hw_resistance_weight,
+                source_node_ids=source_ids,
             ),
         )
 
