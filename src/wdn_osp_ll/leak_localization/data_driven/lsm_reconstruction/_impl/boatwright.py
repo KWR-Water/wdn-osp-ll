@@ -112,7 +112,7 @@ class BoatwrightLSMReconstruction(LSMReconstructionMethod):
                 d[inf_mask] = dist[anchors[inf_mask], j]
             
             w = 1.0 / (d ** exponent)
-            l = w / w.sum()
+            l = w / w.sum() if w.sum() > 0 else np.full_like(w, fill_value=np.nan)
 
             reconstructed[j] = np.sum(observed_lsm[anchors] * l[:, np.newaxis], axis=0)
 
