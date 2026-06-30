@@ -94,6 +94,17 @@ def run_optimisation(config: dict) -> OSPResult:
 
     ref_point = problem.get_nadir_point() if is_multi else None
 
+    # Reduced reference point: cap the n_sensors dimension at 25% of the network.
+    # Computed here so the _snapshot closure can capture it.
+    reduced_ref: np.ndarray | None = None
+    _ns_idx: int | None = None
+    _x_max: int | None = None
+    if is_multi and "n_sensors" in problem.objectives:
+        _ns_idx = problem.objectives.index("n_sensors")
+        _x_max = min(problem.sens_u_limit, problem.leak_analysis.n_nodes // 4)
+        reduced_ref = np.array(ref_point, dtype=float)
+        reduced_ref[_ns_idx] = float(_x_max + 1)
+
     # Build the archipelago
     archi = pygmo.archipelago(
         n=n_islands, algo=pyalgo, prob=problem, pop_size=pop_size
@@ -105,6 +116,7 @@ def run_optimisation(config: dict) -> OSPResult:
     fitness_hist = np.full((n_steps, n_islands, pop_size, n_obj), np.nan)
     decision_hist = np.full((n_steps, n_islands, pop_size, pyprob.get_nx()), np.nan)
     hv_hist = np.full((n_steps, n_islands), np.nan) if is_multi else None
+    reduced_hv_hist = np.full((n_steps, n_islands), np.nan) if reduced_ref is not None else None
 
     tracked = "hypervolume" if is_multi else "fitness"
 
@@ -115,7 +127,13 @@ def run_optimisation(config: dict) -> OSPResult:
 
         if is_multi:
             hvs = [_filtered_hypervolume(isl.get_population(), ref_point) for isl in archi]
+            assert hv_hist is not None
             hv_hist[step] = hvs
+            if reduced_ref is not None:
+                assert reduced_hv_hist is not None
+                reduced_hv_hist[step] = [
+                    _filtered_hypervolume(isl.get_population(), reduced_ref) for isl in archi
+                ]
             return float(np.max(hvs)), float(np.median(hvs))
         else:
             champ_fs = [champ[0] for champ in archi.get_champions_f()]
@@ -145,6 +163,20 @@ def run_optimisation(config: dict) -> OSPResult:
         best_f = all_f[ndf[0]]
         assert ref_point is not None
         final_hv = _hypervolume(best_f, ref_point)
+
+        reduced_hv: float | None = None
+        resolution_hv: float | None = None
+        if reduced_ref is not None:
+            reduced_hv = _hypervolume(best_f, reduced_ref)
+            if "mean_penalized_search_area" in problem.objectives:
+                assert _ns_idx is not None and _x_max is not None
+                msa_idx = problem.objectives.index("mean_penalized_search_area")
+                ns_range = np.arange(problem.sens_l_limit, _x_max + 1, dtype=float)
+                res_f = np.zeros((len(ns_range), n_obj))
+                res_f[:, _ns_idx] = ns_range
+                res_f[:, msa_idx] = problem.leak_analysis.n_junctions / ns_range
+                # all other objectives stay at 0.0 (ideal) so points are dominated by ref
+                resolution_hv = _hypervolume(res_f, reduced_ref)
     else:
         champ_xs = archi.get_champions_x()
         champ_fs = archi.get_champions_f()
@@ -152,12 +184,15 @@ def run_optimisation(config: dict) -> OSPResult:
         best_x = champ_xs[best_idx]
         best_f = champ_fs[best_idx]
         final_hv = None
+        reduced_hv = None
+        resolution_hv = None
 
     history = OSPRunHistory(
         generations=gen_values,
         fitness=fitness_hist,
         decisions=decision_hist,
         hypervolumes=hv_hist,
+        reduced_hypervolumes=reduced_hv_hist,
     )
 
     config_hash = OSPResult.hash_config(config)
@@ -169,6 +204,8 @@ def run_optimisation(config: dict) -> OSPResult:
         config_hash=config_hash,
         history=history,
         final_hypervolume=final_hv,
+        reduced_hypervolume=reduced_hv,
+        resolution_hypervolume=resolution_hv,
     )
 
 

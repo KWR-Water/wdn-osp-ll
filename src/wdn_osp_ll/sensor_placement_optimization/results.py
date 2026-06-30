@@ -42,6 +42,7 @@ class OSPRunHistory:
     fitness: np.ndarray
     decisions: np.ndarray
     hypervolumes: np.ndarray | None
+    reduced_hypervolumes: np.ndarray | None = None  # (n_steps, n_islands), capped at 25% sensors
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +69,8 @@ class OSPResult:
     history: OSPRunHistory
 
     final_hypervolume: float | None = None
+    reduced_hypervolume: float | None = None    # HV over solutions with n_sensors ≤ 25% of network
+    resolution_hypervolume: float | None = None  # HV of the ideal n_junctions/n_sensors curve
 
     # -- persistence --------------------------------------------------------
 

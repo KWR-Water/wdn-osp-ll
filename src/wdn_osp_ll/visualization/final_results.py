@@ -73,10 +73,16 @@ def plot_pareto_front_nsensors_msa(
     # --- reference lines ---
     x_ref = np.linspace(x_min, x_max, 300)
 
-    ax.axhline(1.0, color="green", linestyle="--", linewidth=1.5,
-               label="Perfect leak localization (MSA = 1)", zorder=2)
+    ax.axhline(1.0, color="gray", linestyle="--", linewidth=1.5,
+               label="Perfect leak localization", zorder=2)
+    ax.text(x_min, 1.0, r"$\bar{A}^* = 1$",
+            color="gray", ha="left", va="bottom", fontsize=9, zorder=4)
+
     ax.plot(x_ref, n_junctions / x_ref, color="gray", linestyle=":", linewidth=1.5,
-            label=r"Resolution  (MSA = $n_{junctions}$ / $n_{sensors}$)", zorder=2)
+            label=r"Resolution leak localization", zorder=2)
+    ax.text(x_max, n_junctions / x_max,
+            r"$\bar{A}^* = n_\mathrm{junctions}\,/\,n_\mathrm{sensors}$",
+            color="gray", ha="right", va="top", fontsize=9, zorder=4)
 
     # --- axis limits ---
     ax.set_xlim(x_min - 0.5, x_max + 0.5)
@@ -248,13 +254,22 @@ def plot_hypervolume_bar(
     labels: Sequence[str],
     colors: Sequence,
     *,
+    full_hypervolume: bool = False,
     ax: matplotlib.axes.Axes | None = None,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Bar chart of the final hypervolume of the combined Pareto front.
 
     Each bar represents the hypervolume of the merged Pareto front across all
-    islands (``OSPResult.final_hypervolume``).  The individual island values
-    at the last generation are shown as a strip to reveal the spread.
+    islands.  The individual island values at the last generation (always the
+    unrestricted per-island hypervolume) are shown as a strip to reveal spread.
+
+    Parameters
+    ----------
+    full_hypervolume:
+        When ``False`` (default) the bar height uses ``OSPResult.reduced_hypervolume``
+        (solutions with n_sensors ≤ 25 % of the network), falling back to
+        ``final_hypervolume`` when the reduced value is not available.
+        Pass ``True`` to always use ``OSPResult.final_hypervolume``.
     """
     standalone = ax is None
     if standalone:
@@ -262,25 +277,63 @@ def plot_hypervolume_bar(
     else:
         fig = ax.get_figure()
 
-    x_pos = np.arange(len(labels))
+    # Collect bar heights and island HV strips
     bar_heights: list[float] = []
     island_hvs: list[np.ndarray] = []
-
     for result in results:
-        bar_heights.append(result.final_hypervolume or 0.0)
-        if result.history.hypervolumes is not None:
+        if full_hypervolume or result.reduced_hypervolume is None:
+            bar_heights.append(result.final_hypervolume or 0.0)
+        else:
+            bar_heights.append(result.reduced_hypervolume)
+
+        reduced_hvs_hist = getattr(result.history, "reduced_hypervolumes", None)
+        if not full_hypervolume and reduced_hvs_hist is not None:
+            island_hvs.append(reduced_hvs_hist[-1, :])
+        elif result.history.hypervolumes is not None:
             island_hvs.append(result.history.hypervolumes[-1, :])
         else:
             island_hvs.append(np.array([0.0]))
 
-    ax.bar(x_pos, bar_heights, color=colors, alpha=0.7)
+    # Sort results ascending so the best appears rightmost
+    order = np.argsort(bar_heights)
+    bar_heights   = [bar_heights[i]   for i in order]
+    island_hvs    = [island_hvs[i]    for i in order]
+    sorted_labels: list[str] = [str(labels[i]) for i in order]
+    sorted_colors = [colors[i]        for i in order]
+
+    # Resolution HV reference (only in reduced mode)
+    res_hv: float | None = None
+    if not full_hypervolume:
+        res_hv = next(
+            (getattr(r, "resolution_hypervolume", None) for r in results
+             if getattr(r, "resolution_hypervolume", None) is not None),
+            None,
+        )
+
+    # Append resolution bar at the far right when available
+    if res_hv is not None:
+        bar_heights.append(res_hv)
+        island_hvs.append(np.array([]))
+        sorted_labels.append("Resolution")
+        sorted_colors.append("none")   # filled separately below
+
+    x_pos = np.arange(len(sorted_labels))
+
+    # Draw result bars
+    n_results = len(order)
+    ax.bar(x_pos[:n_results], bar_heights[:n_results], color=sorted_colors[:n_results], alpha=0.7)
+
+    # Draw resolution bar in gray (hatched to distinguish from results)
+    if res_hv is not None:
+        ax.bar(x_pos[n_results], res_hv, color="lightgray", edgecolor="gray",
+               linewidth=1.2, alpha=0.85, hatch="//")
 
     # Scatter individual island values as context
-    for i, hvs in enumerate(island_hvs):
+    for i, hvs in enumerate(island_hvs[:n_results]):
         ax.scatter(
             np.full(len(hvs), x_pos[i]),
             hvs,
-            color=colors[i],
+            color=sorted_colors[i],
             edgecolors="black",
             linewidths=0.6,
             s=30,
@@ -291,10 +344,15 @@ def plot_hypervolume_bar(
         ax.text(x_pos[i], h, f"{h:.3f}", ha="center", va="bottom",
                 fontsize=9, fontweight="bold")
 
+    # Horizontal reference line at resolution HV
+    if res_hv is not None:
+        ax.axhline(res_hv, color="gray", linestyle="--", linewidth=1.2, zorder=2)
+
     ax.set_xticks(x_pos)
-    ax.set_xticklabels(labels, rotation=20, ha="right")
+    ax.set_xticklabels(sorted_labels, rotation=20, ha="right")
     ax.set_ylabel("Hypervolume")
-    ax.set_title("Final Hypervolume (combined Pareto front)")
+    hv_label = "Full Hypervolume" if full_hypervolume else "Reduced Hypervolume (≤25% sensors)"
+    ax.set_title(f"Final {hv_label} (combined Pareto front)")
     ax.grid(axis="y", linestyle="--", alpha=0.5)
 
     if standalone:
