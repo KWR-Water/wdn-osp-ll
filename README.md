@@ -1,6 +1,14 @@
 # wdn-osp-ll
 
-Integrated Optimal Sensor Placement and data-driven Leak Localization for Water Distribution Networks.
+Python library for Integrated Optimal Sensor Placement and Data-Driven Leak Localization for Water Distribution Networks.
+
+## How to Cite
+
+The work related to this library is currently under submission on Water Resources Management. 
+
+## License 
+
+This library is released under the [Creative Commons Attribution 4.0 International (CC BY 4.0)](./LICENSE) licence.
 
 ## Installation
 
