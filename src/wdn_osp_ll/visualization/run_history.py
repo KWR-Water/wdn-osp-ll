@@ -17,6 +17,7 @@ def plot_hypervolume_trajectory(
     colors: Sequence,
     *,
     ax: matplotlib.axes.Axes | None = None,
+    _paper: bool = False,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Hypervolume per island across generations, one line style per result.
 
@@ -51,7 +52,9 @@ def plot_hypervolume_trajectory(
 
     ax.set_xlabel("Generation")
     ax.set_ylabel("Hypervolume")
-    ax.set_title("Hypervolume Trajectory")
+    ax.set_title(
+        "Hypervolume Convergence of Individual Runs" if not _paper else "(c)"
+    )
     ax.legend()
     ax.grid(True, linestyle="--", alpha=0.5)
 

@@ -25,6 +25,7 @@ def plot_pareto_front_nsensors_msa(
     colors: Sequence,
     *,
     ax: matplotlib.axes.Axes | None = None,
+    _paper: bool = False,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Pareto front with n_sensors on x and mean_penalized_search_area on y.
 
@@ -106,7 +107,9 @@ def plot_pareto_front_nsensors_msa(
     ))
     ax.set_ylabel("Mean Penalized Search Area\n(% of network nodes)")
 
-    ax.set_title("Pareto Front: Number of Sensors vs. Search Area")
+    ax.set_title(
+        "Global Pareto Fronts by Configuration" if not _paper else "(a)"
+    )
     ax.legend(loc="upper right")
     ax.grid(True, linestyle="--", alpha=0.5)
 
@@ -259,6 +262,7 @@ def plot_hypervolume_bar(
     *,
     full_hypervolume: bool = False,
     ax: matplotlib.axes.Axes | None = None,
+    _paper: bool = False,
 ) -> tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]:
     """Bar chart of the final hypervolume of the combined Pareto front.
 
@@ -355,7 +359,9 @@ def plot_hypervolume_bar(
     ax.set_xticklabels(sorted_labels, rotation=20, ha="right")
     ax.set_ylabel("Hypervolume")
     hv_label = "Full Hypervolume" if full_hypervolume else "Reduced Hypervolume (≤25% sensors)"
-    ax.set_title(f"Final {hv_label} (combined Pareto front)")
+    ax.set_title(
+        "Hypervolume of Global Pareto Fronts by Configuration" if not _paper else "(b)"
+    )
     ax.grid(axis="y", linestyle="--", alpha=0.5)
 
     if standalone:
