@@ -2,9 +2,12 @@
 
 Python library for Integrated Optimal Sensor Placement and Data-Driven Leak Localization for Water Distribution Networks.
 
-## How to Cite
+## How to Cite
 
 The work related to this library is currently under submission on Water Resources Management. 
+
+In the meanwhile, please cite our Zenodo [![DOI](https://zenodo.org/badge/1448377757.svg)](https://doi.org/10.5281/zenodo.24013742).
+
 
 ## License 
 
